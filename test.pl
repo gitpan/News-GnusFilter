@@ -1,4 +1,4 @@
-#$Id: test.pl,v 1.4 2001/08/19 19:20:37 joe Exp $
+#$Id: test.pl,v 1.6 2001/09/16 04:39:56 joe Exp $
 use 5.006;
 use Test;
 use strict;
@@ -7,7 +7,7 @@ BEGIN { plan tests => 4 };
 my $pid = open FILTER, "-|";
 die "fork failed: $!" unless defined $pid;
 $| = 1;
-close STDERR;
+
 if ($pid) {  # parent
     my @score = (136, 130); # message scores
     my $warnings = 12;      # total warning headers
@@ -27,19 +27,30 @@ if ($pid) {  # parent
 }
 
 else {      # child
-    local $/;
-    foreach my $msg (split '\nEOM\n\n', <DATA>) {
-        open MESSAGE, "| perl -Mlib=blib/lib -wT gnusfilter" or die "fork failed: $!";
-        print MESSAGE $msg;
-        close MESSAGE or die $?;
+    my $cursor = tell DATA;
+
+    TEST_123: {
+
+        local $/;
+
+        foreach my $msg (split '\nEOM\n\n', <DATA>) {
+            open MESSAGE, "| perl -Mlib=blib/lib -wT gnusfilter" or die "fork failed: $!";
+            print MESSAGE $msg;
+            close MESSAGE or die $?;
+        }
     }
 
-    # test pass-thru mode
-    seek DATA, 0, 0;
-    open MESSAGE, "| perl -Mlib=blib/lib -wT gnusfilter" or die "fork failed: $!";
-    print MESSAGE <DATA>;
+    seek DATA, $cursor, 0;
+
+    TEST_4: {
+        open MESSAGE, "| perl -Mlib=blib/lib -wT gnusfilter" or die "fork failed: $!";
+        print MESSAGE <DATA>;
+        seek DATA, 0, 0;
+        print MESSAGE <DATA>; # ensures 8K worth of data
+    }
+
     close MESSAGE or die $?;
-    
+
 }
 
 __DATA__
@@ -209,4 +220,3 @@ varptr() function.
 
 Ralmin.
 
-EOM

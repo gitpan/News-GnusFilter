@@ -1,9 +1,9 @@
 # News::GnusFilter: based on tchrist's msgchk
 # reworked for Gnus by Joe Schaefer <joe+cpan@sunstarsys.com>
-# $Id: GnusFilter.pm,v 1.4 2001/08/19 19:20:37 joe Exp $
+# $Id: GnusFilter.pm,v 1.6 2001/09/16 04:39:55 joe Exp $
 
 package News::GnusFilter;
-$VERSION = '0.50';
+$VERSION = '0.55';
 
 use 5.006;
 use strict;
@@ -12,7 +12,7 @@ use strict;
 
 News::GnusFilter - package for scoring usenet posts
 
-Version: 0.50 ($Revision: 1.4 $)
+Version: 0.55 ($Revision: 1.6 $)
 
 =head1 SYNOPSIS
 
@@ -346,16 +346,16 @@ end of tangled pod
 	# @result ~  ( { goof => value ... }, $field's weight  )
 	#               hashref is optional
 
-	$goof{$field} += $result[-1] if exists $weight{$field};
+	$goof{$field} += $result[-1] || 0 if exists $weight{$field};
 
 	if (ref $result[0]) {
-	    @goof{ keys %{$result[0]} } = values %{$result[0]};
-	    shift @result;
+            my $scores = shift @result;
+	    $goof{$_} += $scores->{$_} for keys %$scores;
 	}
 
 	# MEMOIZE to avoid redundant warnings and prevent
         # overcalculated %goof values
-	&{*$field = sub {wantarray ? @result : join "\n", @result}};
+	&{*$field = sub {wantarray ? @result : join "\n", grep {defined} @result}};
 
     }
 
@@ -402,7 +402,7 @@ on followups it just returns 1.
 
 sub misattribution {
     length(attribution()) ? 0 :
-	references() && groan "Missing attribution"
+	references() ? groan "Missing attribution" : 0
 }
 
 
@@ -1136,6 +1136,8 @@ sub AUTOLOAD {
 
 __END__
 
+=back
+
 =head1 BUGS
 
 =over
@@ -1157,7 +1159,7 @@ for normal e-mail.
 is wrong
 
 
-=item * uses the I<my $x if 0;> trick.
+=item * uses the C<my $x if 0;> trick.
 
 =back
 
